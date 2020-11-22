@@ -1,0 +1,154 @@
+<?php
+include "../config/koneksi.php";
+
+$kode_anggota		= $_POST['kode_anggota'];	
+// SIMPAN
+$kode_simpan		= $_POST['kode_simpan'];
+$kode_tabungan		= $_POST['kode_tabungan']; 
+$tgl_simpan			= $_POST['tgl_simpan'];
+$kode_jenis_simpan	= $_POST['kode_jenis_simpan']; 
+$j=mysql_fetch_array(mysql_query("SELECT * from t_jenis_simpan where kode_jenis_simpan='$kode_jenis_simpan'"));
+$jenis_simpan=$j['nama_simpanan'];
+if($jenis_simpan=='wajib')
+{
+	$ambil=mysql_fetch_array(mysql_query("SELECT * FROM t_simpan where kode_anggota='$kode_anggota' and jenis_simpan='wajib' order by kode_simpan desc "));$num=mysql_num_rows($ambil);
+	if($ambil<=0)
+	{
+		$mulai=date("Y-m-d");
+		$banding=date('Y-m-d',strtotime('+7 day',strtotime($mulai)));
+	}
+	else if($ambil>0)
+	{
+		$mulai=$ambil['tgl_mulai'];
+		$banding=date('Y-m-d',strtotime('+7 day',strtotime($mulai)));
+	}
+}
+else
+{
+	$banding=date("Y-m-d");
+}
+$besar_simpanan		= str_replace(".","",$_POST['besar_simpanan']);
+$user_entri			= $_POST['user_entri'];
+$tgl_entri			= $_POST['tgl_entri'];
+
+// PINJAM
+$kode_pinjam		= $_POST['kode_pinjam'];
+$tgl_pinjam			= $_POST['tgl_pinjam'];
+$kode_jenis_pinjam	= $_POST['kode_jenis_pinjam'];
+$besar_pinjaman		= str_replace(".","",$_POST['besar_pinjaman']);
+$besar_angsuran		= $_POST['besar_angsuran'];
+$lama_angsuran		= $_POST['lama_angsuran'];
+$u_entry			= $_POST['u_entry'];
+$tgl_entri			= $_POST['tgl_entri'];
+
+// ANGSUR
+$kodekodean=$_POST['kode_pinjam'];
+$tgl_angsur			= $_POST['tgl_angsur'];
+$angsuran_ke		= $_POST['angsuran_ke'];
+$sisa_angsuran		= $_POST['sisa_angsuran'];
+$sisa_pinjaman		= $_POST['sisa_pinjaman'];
+$u_entry			= $_POST['u_entry'];
+$tgl_entri			= $_POST['tgl_entri'];
+$besarangsu			= str_replace(".","",$_POST['besar_angsur']);
+$denda=$_POST['denda'];$totalbayar=$besarangsu+$denda;
+
+$pros=$_GET['pros'];
+
+switch($pros){
+	case "simpan"	:
+	$qtambah=mysql_query("INSERT INTO t_simpan VALUES('','$kode_tabungan','$jenis_simpan','$besar_simpanan','$kode_anggota','$user_entri','$banding','$tgl_entri')");
+	if ($qtambah == run) {
+		echo "berhasil";
+	}else{
+		$gagal = mysql_error();
+		echo $gagal;
+	}
+	$sqlbaru=mysql_fetch_array(mysql_query("SELECT besar_tabungan from t_tabungan where kode_anggota='$kode_anggota'"));
+	$hasil=$sqlbaru['besar_tabungan']+$besar_simpanan;
+	$q=mysql_query("UPDATE t_tabungan SET besar_tabungan ='$hasil' 
+	WHERE kode_anggota='$kode_anggota'");?>
+	<script type="text/javascript">
+		window.open('notasimpan.php?kode_anggota=<?php echo $kode_anggota; ?>&kode_jenis=<?php echo $kode_jenis_simpan; ?>&besar_simpan=<?php echo $besar_simpanan; ?>','popuppage','width=500,toolbar=1,resizable=1,scrollbars=yes,height=450,top=30,left=100');
+		window.location="../index.php?pilih=2.1&aksi=simpanananggota&kode_anggota=<?php echo $kode_anggota; ?>";
+	</script>
+	<?php
+	break;
+
+	case "angsur"	:	
+	$sql=mysql_fetch_array(mysql_query("SELECT sisa_angsuran from t_pinjam where kode_pinjam='$kode_pinjam'"));
+	$sisa_angsur=$sql['sisa_angsuran']-1;
+	$sqla=mysql_fetch_array(mysql_query("SELECT * from t_pinjam where kode_pinjam='$kode_pinjam'"));$sisapinjam=$sqla['sisa_pinjaman'];
+	$sqlp=mysql_fetch_array(mysql_query("SELECT besar_angsuran from t_pinjam where kode_pinjam='$kode_pinjam'"));$besarangsur=$sqlp['besar_angsuran'];
+	$siso=$sisapinjam-$besarangsur;
+	$lama_a=$aaa['lama_angsuran'];
+	$ke=$lama_a-$sisa_angsur;
+	$tempo=$sqla['tgl_tempo'];$lagitempo=date('Y-m-d',strtotime('+30 day',strtotime($tempo)));
+	if($sqla['lama_angsuran']==$angsuran_ke)
+	{
+		mysql_query("UPDATE t_pinjam set 
+			sisa_angsuran='$angsuran_ke',
+			sisa_pinjaman='$siso',
+			status='lunas' 
+			where kode_pinjam='$kode_pinjam'");
+	}
+	else
+	{
+		mysql_query("UPDATE t_pinjam set sisa_angsuran='$angsuran_ke',sisa_pinjaman='$siso',tgl_tempo='$lagitempo' where kode_pinjam='$kode_pinjam'");
+	}
+
+	$aaa=mysql_fetch_array(mysql_query("SELECT lama_angsuran from t_pinjam where kode_pinjam='$kode_pinjam'"));
+
+	$s=mysql_query("INSERT INTO t_angsur VALUES('','$kode_pinjam','$angsuran_ke','$besarangsu','$denda','$siso','$kode_anggota','$u_entry','$tgl_entri')");
+	if($s)
+		{ ?>
+			<script>
+				window.open('notaangsur.php?kode_anggota=<?php echo $kode_anggota; ?>&kode_pinjam=<?php echo $kodekodean; ?>&besar=<?php echo $besarangsu; ?>&angsuran_ke=<?php echo $angsuran_ke; ?>&denda=<?php echo $denda; ?>','popuppage','width=500,toolbar=1,resizable=1,scrollbars=yes,height=450,top=30,left=100');
+				window.location="../index.php?pilih=2.1&aksi=pinjamangsur&kode_anggota=<?php echo $kode_anggota;?>";
+			</script>
+		<?php }
+		else
+		{
+			echo'gagal';
+		}
+
+		break;
+
+		case "lunas"	:	
+		$besar_angsur =$_POST['besar_angsur'];
+		// $sql=mysql_fetch_array(mysql_query("SELECT sisa_angsuran from t_pinjam where kode_pinjam='$kode_pinjam'"));
+		// $sisa_angsur=$sql['sisa_angsuran']-1;
+		$sqla=mysql_fetch_array(mysql_query("SELECT * from t_pinjam where kode_pinjam='$kode_pinjam'"));$sisapinjaman=$sqla['sisa_pinjaman'];
+		$sqlb=mysql_fetch_array(mysql_query("SELECT * from t_pinjam where kode_pinjam='$kode_pinjam'"));$angsuranping=$sqlb['sisa_angsuran']+1;
+		// $sqlp=mysql_fetch_array(mysql_query("SELECT besar_angsuran from t_pinjam where kode_pinjam='$kode_pinjam'"));$besarangsur=$sqlp['besar_angsuran'];
+		$siso=$sisapinjaman-$besar_angsur;
+		// $lama_a=$aaa['lama_angsuran'];
+		// $ke=$lama_a-$sisa_angsur;
+		mysql_query("UPDATE t_pinjam set 
+			sisa_angsuran='$angsuranping',
+			sisa_pinjaman='$siso',
+			status='lunas' 
+			where kode_pinjam='$kode_pinjam'");
+
+		$tempo=$sqla['tgl_tempo'];$lagitempo=date('Y-m-d',strtotime('+30 day',strtotime($tempo)));
+		if($sqla['lama_angsuran']==$angsuran_ke)
+
+			mysql_query("UPDATE t_pinjam set sisa_angsuran='$angsuran_ke',sisa_pinjaman='$siso',tgl_tempo='$lagitempo' where kode_pinjam='$kode_pinjam'");
+
+		$aaa=mysql_fetch_array(mysql_query("SELECT lama_angsuran from t_pinjam where kode_pinjam='$kode_pinjam'"));
+
+		$s=mysql_query("INSERT INTO t_angsur VALUES('','$kode_pinjam','$angsuranping','$besarangsu','$denda','$siso','$kode_anggota','$u_entry','$tgl_entri')");
+		if($s)
+			{ ?>
+				<script>
+					window.open('notaangsur.php?kode_anggota=<?php echo $kode_anggota; ?>&kode_pinjam=<?php echo $kodekodean; ?>&besar=<?php echo $besarangsu; ?>&angsuran_ke=<?php echo $angsuran_ke; ?>&denda=<?php echo $denda; ?>','popuppage','width=500,toolbar=1,resizable=1,scrollbars=yes,height=450,top=30,left=100');
+					window.location="../index.php?pilih=2.1&aksi=pinjamangsur&kode_anggota=<?php echo $kode_anggota;?>";
+				</script>
+			<?php }
+			else
+			{
+				echo'gagal';
+			}
+		}
+		break;
+		
+		?>
